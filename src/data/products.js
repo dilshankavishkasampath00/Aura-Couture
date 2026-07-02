@@ -8,7 +8,7 @@ const products = [
     colors: ['Ivory Blossom', 'Powder Blue', 'Blush Pink'],
     sizes: ['S', 'M', 'L'],
     image: 'https://images.unsplash.com/photo-1520975901070-3a2c1e16f3f4?auto=format&fit=crop&w=800&q=80',
-    overlay: 'https://i.ibb.co/kHtJ6rw/dress-overlay.png',
+    overlay: '/overlay-dress.png',
     has3D: true
   },
   {
@@ -20,7 +20,7 @@ const products = [
     colors: ['Sand', 'Olive', 'Navy'],
     sizes: ['M', 'L', 'XL'],
     image: 'https://images.unsplash.com/photo-1512436991641-6745cdb1723f?auto=format&fit=crop&w=800&q=80',
-    overlay: 'https://i.ibb.co/kHtJ6rw/dress-overlay.png'
+    overlay: '/overlay-blazer.png'
   },
   {
     id: 'pleated-skirt',
@@ -31,8 +31,9 @@ const products = [
     colors: ['Cream', 'Mauve', 'Black'],
     sizes: ['S', 'M', 'L'],
     image: 'https://images.unsplash.com/photo-1514996937319-344454492b37?auto=format&fit=crop&w=800&q=80',
-    overlay: 'https://i.ibb.co/kHtJ6rw/dress-overlay.png'
+    overlay: '/overlay-skirt.png'
   }
 ]
 
 export default products
+
