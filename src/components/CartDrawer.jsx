@@ -1,5 +1,6 @@
 import React from 'react'
 import { useNavigate } from 'react-router-dom'
+import { X, Trash2 } from 'lucide-react'
 import { useCart } from '../context/CartContext.jsx'
 
 export default function CartDrawer() {
@@ -18,7 +19,7 @@ export default function CartDrawer() {
             <h2 className="text-xl font-semibold text-slate-900">Ready to checkout</h2>
           </div>
           <button onClick={() => setDrawerOpen(false)} className="rounded-full bg-slate-100 p-2 text-slate-700 transition hover:bg-slate-200">
-            <span className="material-symbols-outlined">close</span>
+            <X size={18} />
           </button>
         </div>
 
@@ -35,14 +36,14 @@ export default function CartDrawer() {
                       <h3 className="font-semibold text-slate-900">{item.name}</h3>
                       <p className="mt-1 text-sm text-slate-500">{item.selectedColor} • {item.selectedSize}</p>
                     </div>
-                    <button onClick={() => removeFromCart(item.key)} className="text-slate-400 transition hover:text-slate-700">
-                      <span className="material-symbols-outlined">delete</span>
+                    <button onClick={() => removeFromCart(item.key)} className="text-slate-400 transition hover:text-red-500">
+                      <Trash2 size={16} />
                     </button>
                   </div>
                   <div className="mt-4 flex items-center gap-3">
-                    <button onClick={() => updateQuantity(item.key, item.quantity - 1)} className="h-9 w-9 rounded-full border border-slate-200 text-slate-700">-</button>
+                    <button onClick={() => updateQuantity(item.key, item.quantity - 1)} className="h-9 w-9 rounded-full border border-slate-200 text-slate-700 font-semibold hover:bg-slate-100 transition">-</button>
                     <span className="text-sm font-semibold">{item.quantity}</span>
-                    <button onClick={() => updateQuantity(item.key, item.quantity + 1)} className="h-9 w-9 rounded-full border border-slate-200 text-slate-700">+</button>
+                    <button onClick={() => updateQuantity(item.key, item.quantity + 1)} className="h-9 w-9 rounded-full border border-slate-200 text-slate-700 font-semibold hover:bg-slate-100 transition">+</button>
                     <span className="ml-auto text-sm font-semibold text-slate-900">Rs. {item.price.toLocaleString()}</span>
                   </div>
                 </div>
@@ -72,3 +73,4 @@ export default function CartDrawer() {
     </div>
   )
 }
+

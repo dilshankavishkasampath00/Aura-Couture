@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
+import { Camera, ShoppingBag } from 'lucide-react'
 import { useCart } from '../context/CartContext.jsx'
 import products from '../data/products.js'
 
@@ -67,7 +68,7 @@ export default function ProductDetails() {
                     <button
                       key={color}
                       onClick={() => setSelectedColor(color)}
-                      className={`rounded-full border px-4 py-3 text-sm font-semibold transition ${selectedColor === color ? 'border-primary bg-primary/10 text-slate-900' : 'border-slate-200 bg-slate-50 text-slate-600'}`}>
+                      className={`rounded-full border px-4 py-3 text-sm font-semibold transition ${selectedColor === color ? 'border-slate-900 bg-slate-900 text-white' : 'border-slate-200 bg-slate-50 text-slate-600 hover:border-slate-400'}`}>
                       {color}
                     </button>
                   ))}
@@ -81,7 +82,7 @@ export default function ProductDetails() {
                     <button
                       key={size}
                       onClick={() => setSelectedSize(size)}
-                      className={`rounded-2xl px-4 py-3 text-sm font-semibold transition ${selectedSize === size ? 'border-primary bg-primary/10 text-slate-900' : 'border-slate-200 bg-slate-50 text-slate-600'}`}>
+                      className={`rounded-2xl border px-5 py-3 text-sm font-semibold transition ${selectedSize === size ? 'border-slate-900 bg-slate-900 text-white' : 'border-slate-200 bg-slate-50 text-slate-600 hover:border-slate-400'}`}>
                       {size}
                     </button>
                   ))}
@@ -95,11 +96,12 @@ export default function ProductDetails() {
             </div>
 
             <div className="grid gap-3 sm:grid-cols-2">
-              <button onClick={handleTryOn} className="inline-flex items-center justify-center gap-2 rounded-full bg-primary px-6 py-4 text-sm font-semibold text-white transition hover:bg-[#111]">
-                <span className="material-symbols-outlined">photo_camera</span>
+              <button onClick={handleTryOn} className="inline-flex items-center justify-center gap-2 rounded-full bg-slate-900 px-6 py-4 text-sm font-semibold text-white transition hover:bg-slate-700">
+                <Camera size={16} />
                 Try On With Camera
               </button>
-              <button onClick={handleAddToCart} className="inline-flex items-center justify-center gap-2 rounded-full border border-primary px-6 py-4 text-sm font-semibold text-primary transition hover:bg-slate-100">
+              <button onClick={handleAddToCart} className="inline-flex items-center justify-center gap-2 rounded-full border border-slate-900 px-6 py-4 text-sm font-semibold text-slate-900 transition hover:bg-slate-100">
+                <ShoppingBag size={16} />
                 Add to Cart
               </button>
             </div>
@@ -111,3 +113,4 @@ export default function ProductDetails() {
     </main>
   )
 }
+
