@@ -18,7 +18,7 @@ export default function ProductCard({ product, onSelect, onTryOn }) {
       onTryOn(product)
       return
     }
-    navigate(`/try-on/${product.id}`)
+    navigate(`/photo-try-on/${product.id}`)
   }
 
   return (

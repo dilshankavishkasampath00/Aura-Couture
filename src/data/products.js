@@ -1,3 +1,19 @@
+// Color name → CSS filter string (applied on top of the base garment image)
+export const COLOR_FILTERS = {
+  // Floral Dress
+  'Ivory Blossom': 'none',
+  'Powder Blue':   'hue-rotate(200deg) saturate(1.3) brightness(1.05)',
+  'Blush Pink':    'hue-rotate(330deg) saturate(1.4) brightness(1.05)',
+  // Linen Blazer
+  'Sand':  'none',
+  'Olive': 'hue-rotate(55deg) saturate(0.9) brightness(0.85)',
+  'Navy':  'hue-rotate(220deg) saturate(3) brightness(0.45)',
+  // Pleated Skirt
+  'Cream': 'none',
+  'Mauve': 'hue-rotate(310deg) saturate(0.9) brightness(0.9)',
+  'Black': 'grayscale(1) brightness(0.12)',
+}
+
 const products = [
   {
     id: 'floral-dress',
@@ -9,6 +25,7 @@ const products = [
     sizes: ['S', 'M', 'L'],
     image: 'https://images.unsplash.com/photo-1520975901070-3a2c1e16f3f4?auto=format&fit=crop&w=800&q=80',
     overlay: '/overlay-dress.png',
+    dressImage: '/dresses/dress-base.png',
     has3D: true
   },
   {
@@ -20,7 +37,8 @@ const products = [
     colors: ['Sand', 'Olive', 'Navy'],
     sizes: ['M', 'L', 'XL'],
     image: 'https://images.unsplash.com/photo-1512436991641-6745cdb1723f?auto=format&fit=crop&w=800&q=80',
-    overlay: '/overlay-blazer.png'
+    overlay: '/overlay-blazer.png',
+    dressImage: '/dresses/blazer-base.png'
   },
   {
     id: 'pleated-skirt',
@@ -31,9 +49,9 @@ const products = [
     colors: ['Cream', 'Mauve', 'Black'],
     sizes: ['S', 'M', 'L'],
     image: 'https://images.unsplash.com/photo-1514996937319-344454492b37?auto=format&fit=crop&w=800&q=80',
-    overlay: '/overlay-skirt.png'
+    overlay: '/overlay-skirt.png',
+    dressImage: '/dresses/skirt-base.png'
   }
 ]
 
 export default products
-

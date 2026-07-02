@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
-import { Camera, ShoppingBag } from 'lucide-react'
+import { Camera, ShoppingBag, ImageUp } from 'lucide-react'
 import { useCart } from '../context/CartContext.jsx'
 import products from '../data/products.js'
 
@@ -95,12 +95,30 @@ export default function ProductDetails() {
               <p className="text-sm leading-7 text-slate-600">{product.description}</p>
             </div>
 
-            <div className="grid gap-3 sm:grid-cols-2">
-              <button onClick={handleTryOn} className="inline-flex items-center justify-center gap-2 rounded-full bg-slate-900 px-6 py-4 text-sm font-semibold text-white transition hover:bg-slate-700">
-                <Camera size={16} />
-                Try On With Camera
+            <div className="flex flex-col gap-3">
+              {/* Primary: Photo Try-On */}
+              <button
+                onClick={() => navigate(`/photo-try-on/${product.id}`, { state: { selectedColor, selectedSize } })}
+                className="inline-flex items-center justify-center gap-2 rounded-full bg-slate-900 px-6 py-4 text-sm font-semibold text-white transition hover:bg-slate-700 active:scale-95"
+              >
+                <ImageUp size={16} />
+                Try On Your Photo
               </button>
-              <button onClick={handleAddToCart} className="inline-flex items-center justify-center gap-2 rounded-full border border-slate-900 px-6 py-4 text-sm font-semibold text-slate-900 transition hover:bg-slate-100">
+
+              {/* Secondary: Live Camera */}
+              <button
+                onClick={() => navigate(`/try-on/${product.id}`, { state: { selectedColor, selectedSize } })}
+                className="inline-flex items-center justify-center gap-2 rounded-full border border-slate-300 px-6 py-4 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 active:scale-95"
+              >
+                <Camera size={16} />
+                Try On Live (Camera)
+              </button>
+
+              {/* Add to Cart */}
+              <button
+                onClick={handleAddToCart}
+                className="inline-flex items-center justify-center gap-2 rounded-full bg-white border border-slate-200 px-6 py-3.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-100 active:scale-95"
+              >
                 <ShoppingBag size={16} />
                 Add to Cart
               </button>

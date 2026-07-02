@@ -6,6 +6,7 @@ import Home from './pages/Home.jsx'
 import Shop from './pages/Shop.jsx'
 import ProductDetails from './pages/ProductDetails.jsx'
 import VirtualTryOn from './pages/VirtualTryOn.jsx'
+import PhotoTryOn from './pages/PhotoTryOn.jsx'
 import CartPage from './pages/CartPage.jsx'
 import Checkout from './pages/Checkout.jsx'
 import SavedLooks from './pages/SavedLooks.jsx'
@@ -22,6 +23,7 @@ function App() {
         <Route path="/shop" element={<Shop products={products} />} />
         <Route path="/product/:id" element={<ProductDetails products={products} />} />
         <Route path="/try-on/:id" element={<VirtualTryOn products={products} />} />
+        <Route path="/photo-try-on/:id" element={<PhotoTryOn />} />
         <Route path="/cart" element={<CartPage />} />
         <Route path="/checkout" element={<Checkout />} />
         <Route path="/saved-looks" element={<SavedLooks />} />
