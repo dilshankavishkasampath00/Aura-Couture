@@ -99,6 +99,7 @@ export default function VirtualTryOn() {
             onError={() => setCameraStatus('denied')}
             onPermissionChange={setCameraStatus}
             onPoseUpdate={setBodyDetected}
+            debugMode={true}
           />
         )}
       </div>

@@ -14,7 +14,7 @@ import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from 're
  * already baked into the canvas, so the screenshot is correct.
  */
 const CameraTryOn = forwardRef(
-  ({ overlayUrl, facingMode = 'user', onReady, onError, onPoseUpdate, onPermissionChange }, ref) => {
+  ({ overlayUrl, facingMode = 'user', onReady, onError, onPoseUpdate, onPermissionChange, debugMode = true }, ref) => {
     const videoRef        = useRef(null)   // hidden video element
     const canvasRef       = useRef(null)   // visible canvas — renders video + overlay
     const streamRef       = useRef(null)
@@ -23,11 +23,21 @@ const CameraTryOn = forwardRef(
     const landmarksRef    = useRef(null)   // latest MediaPipe landmarks
     const overlayImgRef   = useRef(null)   // preloaded dress PNG
     const mountedRef      = useRef(true)
-    const poseIntervalRef = useRef(null)
+    const lastPoseSendRef = useRef(0)
 
     const [permissionState, setPermissionState] = useState('loading') // loading | granted | denied
     const [bodyDetected,    setBodyDetected]    = useState(false)
     const [poseReady,       setPoseReady]       = useState(false)
+    const [overlayStatus,   setOverlayStatus]   = useState('loading')
+    const [overlayMessage,  setOverlayMessage]  = useState('Loading dress asset…')
+    const [debugInfo,       setDebugInfo]       = useState({
+      poseDetected: false,
+      shoulderDistance: 0,
+      leftShoulder: null,
+      rightShoulder: null,
+      leftHip: null,
+      rightHip: null
+    })
 
     // ─── Expose capturePhoto to parent ───────────────────────────────────────
     useImperativeHandle(ref, () => ({
@@ -40,11 +50,28 @@ const CameraTryOn = forwardRef(
 
     // ─── Pre-load dress overlay image ─────────────────────────────────────────
     useEffect(() => {
-      if (!overlayUrl) { overlayImgRef.current = null; return }
+      if (!overlayUrl) {
+        overlayImgRef.current = null
+        setOverlayStatus('idle')
+        setOverlayMessage('No dress asset provided')
+        return
+      }
+
+      setOverlayStatus('loading')
+      setOverlayMessage('Loading dress asset…')
       const img = new Image()
+      img.onload = () => {
+        overlayImgRef.current = img
+        setOverlayStatus('loaded')
+        setOverlayMessage('')
+      }
+      img.onerror = () => {
+        overlayImgRef.current = null
+        setOverlayStatus('error')
+        setOverlayMessage('Dress image failed to load')
+        console.warn('Overlay image failed to load:', overlayUrl)
+      }
       img.src = overlayUrl
-      img.onload  = () => { overlayImgRef.current = img }
-      img.onerror = () => { overlayImgRef.current = null; console.warn('Overlay image failed to load:', overlayUrl) }
     }, [overlayUrl])
 
     // ─── Main effect: camera + canvas render loop + MediaPipe ─────────────────
@@ -54,16 +81,15 @@ const CameraTryOn = forwardRef(
 
       const stop = () => {
         cancelled = true
-        if (streamRef.current)       { streamRef.current.getTracks().forEach(t => t.stop()); streamRef.current = null }
-        if (animRef.current)         { cancelAnimationFrame(animRef.current); animRef.current = null }
-        if (poseIntervalRef.current) { clearInterval(poseIntervalRef.current); poseIntervalRef.current = null }
-        if (poseRef.current)         { try { poseRef.current.close() } catch (_) {} poseRef.current = null }
+        if (streamRef.current) { streamRef.current.getTracks().forEach(t => t.stop()); streamRef.current = null }
+        if (animRef.current) { cancelAnimationFrame(animRef.current); animRef.current = null }
+        if (poseRef.current) { try { poseRef.current.close() } catch (_) {} poseRef.current = null }
         landmarksRef.current = null
       }
 
       // ── Canvas render loop ──────────────────────────────────────────────────
       const startRenderLoop = (video) => {
-        const draw = () => {
+        const draw = (timestamp) => {
           if (cancelled || !mountedRef.current) return
           animRef.current = requestAnimationFrame(draw)
 
@@ -71,76 +97,126 @@ const CameraTryOn = forwardRef(
           if (!canvas) return
 
           const ctx = canvas.getContext('2d')
-          const CW = canvas.width   // canvas pixel width
-          const CH = canvas.height  // canvas pixel height
-
-          if (video.readyState < 2 || video.videoWidth === 0) return
-
-          // Keep canvas pixels in sync with display size
           const rect = canvas.getBoundingClientRect()
           if (canvas.width !== rect.width || canvas.height !== rect.height) {
-            canvas.width  = rect.width
+            canvas.width = rect.width
             canvas.height = rect.height
           }
 
-          // Draw mirrored video for front camera (selfie feel)
+          const CW = canvas.width
+          const CH = canvas.height
+
+          if (video.readyState < 2 || video.videoWidth === 0) return
+
+          ctx.clearRect(0, 0, CW, CH)
+
+          // Draw mirrored video for the front camera.
           ctx.save()
-          if (facingMode === 'user') { ctx.translate(CW, 0); ctx.scale(-1, 1) }
+          if (facingMode === 'user') {
+            ctx.translate(CW, 0)
+            ctx.scale(-1, 1)
+          }
           ctx.drawImage(video, 0, 0, CW, CH)
           ctx.restore()
 
-          // ── Draw dress overlay ────────────────────────────────────────────
           const overlay = overlayImgRef.current
           const lm = landmarksRef.current
+          const mirrorX = (x) => (facingMode === 'user' ? 1 - x : x)
+
+          let overlayRect = null
 
           if (overlay) {
-            const iW = overlay.naturalWidth || 1
-            const iH = overlay.naturalHeight || 1
+            const iW = overlay.naturalWidth || overlay.width || 1
+            const iH = overlay.naturalHeight || overlay.height || 1
             const aspectRatio = iH / iW
 
             if (lm && lm[11] && lm[12] && lm[23] && lm[24]) {
-              // --- Body-tracked position ---
-              const lS = lm[11], rS = lm[12]  // left/right shoulder
-              const lH = lm[23], rH = lm[24]  // left/right hip
+              const lS = lm[11]
+              const rS = lm[12]
+              const lH = lm[23]
+              const rH = lm[24]
 
-              // MediaPipe gives normalized [0,1] coords.
-              // For front camera the video is mirrored but landmarks are NOT —
-              // so we flip landmark X to match the mirrored video.
-              const mx = (x) => facingMode === 'user' ? 1 - x : x
+              const leftShoulder = { x: mirrorX(lS.x), y: lS.y }
+              const rightShoulder = { x: mirrorX(rS.x), y: rS.y }
+              const leftHip = { x: mirrorX(lH.x), y: lH.y }
+              const rightHip = { x: mirrorX(rH.x), y: rH.y }
 
-              const lsX = mx(lS.x), rsX = mx(rS.x)
-              const midShoulderX = (lsX + rsX) / 2
-              const midShoulderY = (lS.y + rS.y) / 2
-              const midHipY = (lH.y + rH.y) / 2
+              const midShoulderX = (leftShoulder.x + rightShoulder.x) / 2
+              const midShoulderY = (leftShoulder.y + rightShoulder.y) / 2
+              const midHipY = (leftHip.y + rightHip.y) / 2
+              const shoulderSpanPx = Math.abs(leftShoulder.x - rightShoulder.x) * CW
+              const dressW = Math.max(140, shoulderSpanPx * 2.4)
+              const dressH = Math.max(160, dressW * aspectRatio)
+              const x = Math.max(0, Math.min(CW - dressW, midShoulderX * CW - dressW / 2))
+              const y = Math.max(20, midShoulderY * CH - dressH * 0.18)
 
-              // Shoulder span → dress width (add padding for sleeves)
-              const shoulderSpanPx = Math.abs(lsX - rsX) * CW
-              const dressW = Math.max(80, shoulderSpanPx * 2.6) // 2.6× for sleeves + fabric
-
-              // Shoulder-to-hip height → scale dress height to full length
-              const torsoH = (midHipY - midShoulderY) * CH
-              const dressH = Math.max(120, aspectRatio * dressW)
-
-              // Center the dress horizontally on shoulder midpoint
-              const x = midShoulderX * CW - dressW / 2
-              // Align dress top a little above the shoulder line
-              const y = midShoulderY * CH - dressH * 0.08
-
-              ctx.globalAlpha = 0.90
+              overlayRect = { x, y, width: dressW, height: dressH }
+              ctx.globalAlpha = 0.95
               ctx.drawImage(overlay, x, y, dressW, dressH)
-              ctx.globalAlpha = 1.0
+              ctx.globalAlpha = 1
+
+              setBodyDetected(true)
+              setDebugInfo({
+                poseDetected: true,
+                shoulderDistance: Number(Math.abs(leftShoulder.x - rightShoulder.x).toFixed(3)),
+                leftShoulder,
+                rightShoulder,
+                leftHip,
+                rightHip
+              })
             } else {
-              // No landmarks yet — show dress in default centered position (ghost preview)
-              const dressW = CW * 0.55
-              const dressH = aspectRatio * dressW
+              const dressW = CW * 0.5
+              const dressH = Math.max(160, dressW * aspectRatio)
               const x = CW / 2 - dressW / 2
-              const y = CH * 0.12
-              ctx.globalAlpha = 0.35
+              const y = CH * 0.16
+
+              overlayRect = { x, y, width: dressW, height: dressH }
+              ctx.globalAlpha = 0.55
               ctx.drawImage(overlay, x, y, dressW, dressH)
-              ctx.globalAlpha = 1.0
+              ctx.globalAlpha = 1
+
+              setBodyDetected(false)
+              setDebugInfo((prev) => ({ ...prev, poseDetected: false }))
+            }
+          } else if (overlayStatus === 'error') {
+            ctx.fillStyle = 'rgba(255,255,255,0.85)'
+            ctx.font = '16px sans-serif'
+            ctx.fillText('Dress image failed to load', 20, 30)
+          }
+
+          if (debugMode) {
+            if (overlayRect) {
+              ctx.strokeStyle = '#ff3b30'
+              ctx.lineWidth = 2
+              ctx.strokeRect(overlayRect.x, overlayRect.y, overlayRect.width, overlayRect.height)
+            }
+
+            if (lm && lm[11] && lm[12] && lm[23] && lm[24]) {
+              const drawPoint = (point, color) => {
+                const px = mirrorX(point.x) * CW
+                const py = point.y * CH
+                ctx.beginPath()
+                ctx.fillStyle = color
+                ctx.arc(px, py, 4, 0, Math.PI * 2)
+                ctx.fill()
+              }
+
+              drawPoint(lm[11], '#34d399')
+              drawPoint(lm[12], '#fbbf24')
+              drawPoint(lm[23], '#60a5fa')
+              drawPoint(lm[24], '#f43f5e')
+            }
+          }
+
+          if (poseRef.current && video.readyState >= 2 && video.videoWidth > 0) {
+            const now = performance.now()
+            if (now - lastPoseSendRef.current > 160) {
+              lastPoseSendRef.current = now
+              void poseRef.current.send({ image: video }).catch(() => {})
             }
           }
         }
+
         animRef.current = requestAnimationFrame(draw)
       }
 
@@ -171,17 +247,11 @@ const CameraTryOn = forwardRef(
             const detected = !!(lm && lm[11] && lm[12] && lm[23] && lm[24])
             setBodyDetected(detected)
             onPoseUpdate?.(detected)
+            setPoseReady(true)
           })
 
           poseRef.current = pose
           setPoseReady(true)
-
-          // Send frames to MediaPipe on interval to avoid blocking the render loop
-          poseIntervalRef.current = setInterval(async () => {
-            if (cancelled || !poseRef.current) return
-            if (video.readyState < 2 || video.videoWidth === 0) return
-            try { await poseRef.current.send({ image: video }) } catch (_) {}
-          }, 160) // ~6 fps for pose detection is enough
 
         } catch (err) {
           console.warn('[CameraTryOn] MediaPipe load failed — overlay will use default position.', err)
@@ -259,13 +329,13 @@ const CameraTryOn = forwardRef(
 
     return (
       <div className="relative h-screen w-full overflow-hidden bg-black">
-        {/* Hidden video — source for canvas drawing */}
-        <video ref={videoRef} className="hidden" playsInline muted autoPlay />
+        {/* Camera input — positioned behind the canvas render layer */}
+        <video ref={videoRef} className="absolute inset-0 h-full w-full object-cover opacity-0" playsInline muted autoPlay />
 
         {/* Main canvas — full screen, shows video + overlay */}
         <canvas
           ref={canvasRef}
-          className="h-full w-full"
+          className="absolute inset-0 h-full w-full"
           style={{ display: 'block' }}
         />
 
@@ -306,12 +376,25 @@ const CameraTryOn = forwardRef(
           </div>
         </div>
 
+        {debugMode && (
+          <div className="pointer-events-none absolute left-4 top-24 z-20 max-w-[260px] rounded-2xl border border-white/10 bg-black/70 p-3 text-[11px] text-white/80 shadow-xl backdrop-blur">
+            <p className="font-semibold text-white">Debug overlay</p>
+            <p>{bodyDetected ? 'Pose detected' : 'No pose detected'}</p>
+            <p>Shoulder distance: {debugInfo.shoulderDistance.toFixed(3)}</p>
+            <p>LS: {debugInfo.leftShoulder ? `${debugInfo.leftShoulder.x.toFixed(2)}, ${debugInfo.leftShoulder.y.toFixed(2)}` : '—'}</p>
+            <p>RS: {debugInfo.rightShoulder ? `${debugInfo.rightShoulder.x.toFixed(2)}, ${debugInfo.rightShoulder.y.toFixed(2)}` : '—'}</p>
+            <p>LH: {debugInfo.leftHip ? `${debugInfo.leftHip.x.toFixed(2)}, ${debugInfo.leftHip.y.toFixed(2)}` : '—'}</p>
+            <p>RH: {debugInfo.rightHip ? `${debugInfo.rightHip.x.toFixed(2)}, ${debugInfo.rightHip.y.toFixed(2)}` : '—'}</p>
+            <p className="mt-2 text-[10px] text-white/60">{overlayStatus === 'error' ? overlayMessage : overlayStatus}</p>
+          </div>
+        )}
+
         {/* Instructions when no body detected */}
         {permissionState === 'granted' && !bodyDetected && (
           <div className="pointer-events-none absolute bottom-[55%] inset-x-0 flex justify-center px-6">
             <div className="rounded-2xl bg-black/50 px-4 py-3 backdrop-blur-sm text-center">
               <p className="text-xs text-white/60 leading-relaxed">
-                📏 Stand 1.5–2m from camera · Keep shoulders visible · Good lighting helps
+                📏 Step back and keep shoulders and hips visible · Good lighting helps
               </p>
             </div>
           </div>
